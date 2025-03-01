@@ -1,0 +1,107 @@
+﻿@model HomeProductsListVM
+
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<section>
+    <div class="container py-1">
+        <div class="d-flex justify-content-center m-2">
+            <a href="@Url.Action("Index", new { category = "" })" class="btn btn-success mx-1">Всі товари</a>
+            @foreach (var category in Model.Categories)
+            {
+                <a href="@Url.Action("Index", new { category = category.Name })" class="btn btn-success mx-1">@category.Name</a>
+            }
+        </div>
+        <div class="row">
+            @foreach (var viewModel in Model.Products)
+            {
+                <div class="col-md-12 col-lg-3 mb-4 mb-lg-2 home-product-card">
+                    <div class="card shadow h-100">
+                        <div class="d-flex justify-content-between p-3">
+                            <p style="color: black" class="lead mb-0">Today's Combo Offer</p>
+                        </div>
+                        <a asp-action="Details" asp-route-id="@viewModel.Product.Id" class="text-decoration-none d-block">
+                            <div class="text-center">
+                                <img style="max-width: 200px" src="~/images/products/@(viewModel.Product.Image ?? "default.png")"
+                                class="card-img-top" alt="@viewModel.Product.Name" />
+                            </div>
+                        </a>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-start">
+                                <p class="small">
+                                    <a href="@Url.Action("Index", new { category = viewModel.Product.Category?.Name })" class="product-card-link">@viewModel.Product.Category?.Name</a>
+                                </p>
+                            </div>
+
+                            <div class="d-flex justify-content-between mb-3">
+                                <a asp-action="Details" asp-route-id="@viewModel.Product.Id" class="text-decoration-none d-block">
+                                    <h6 style="color: black;" class="mb-0 me-1">@viewModel.Product.Name</h6>
+                                </a>
+                                <h5 class="text-dark mb-0">@viewModel.Product.Price₴</h5>
+                            </div>
+
+                            <div class="d-flex justify-content-between mb-2">
+                                @if (viewModel.Product.Amount == 0)
+                                {
+                                    <p class="text-muted mb-0">Not available</p>
+
+                                }
+                                else
+                                {
+                                    <p class="text-muted mb-0">Available: <span class="fw-bold">@viewModel.Product.Amount</span></p>
+                                }
+                            </div>
+                            <div>
+                                @if(viewModel.Product.Amount > 0)
+                                {
+                                    @if (!viewModel.InCart)
+                                    {
+                                        <button onclick="addToCart('@viewModel.Product.Id')" class="btn btn-warning">
+                                            <i class="bi bi-cart-plus-fill"></i>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button onclick="removeFromCart('@viewModel.Product.Id')" class="btn btn-danger">
+                                            <i class="bi bi-cart-dash-fill"></i>
+                                        </button>
+                                    }
+                                }   
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+<nav aria-label="Page navigation example" class="mx-3">
+    <ul class="pagination">
+        @if (Model.Page > 1)
+        {
+            <li class="page-item">
+                <a class="page-link" href="@Url.Action("Index", new { category = Model.Category, page = Model.Page - 1 })" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+        }
+        @if(Model.PagesCount > 1)
+        {
+            @for (int i = 1; i <= Model.PagesCount; i++)
+            {
+                <li class="page-item @(i == Model.Page ? "active" : "")">
+                    <a class="page-link" href="@Url.Action("Index", new { category = Model.Category, page = i })">@i</a>
+                </li>
+            }
+        }
+        @if (Model.Page < Model.PagesCount)
+        {
+            <li class="page-item">
+                <a class="page-link" href="@Url.Action("Index", new { category = Model.Category, page = Model.Page + 1 })" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+        }
+    </ul>
+</nav>

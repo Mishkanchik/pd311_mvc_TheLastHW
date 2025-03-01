@@ -1,0 +1,157 @@
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using pd311_mvc_aspnet.Repositories.Products;
+using pd311_mvc_aspnet.Repositories.Promos;
+using pd311_mvc_aspnet.Services.Cart;
+using pd311_mvc_aspnet.Services.Session;
+using pd311_mvc_aspnet.ViewModels;
+
+namespace pd311_mvc_aspnet.Controllers
+{
+    public class CartController : Controller
+    {
+        private readonly ICartService _cartService;
+        private readonly IProductRepository _productRepository;
+        private readonly IPromoRepository _promoRepository;
+        public CartController(ICartService cartService, IProductRepository productRepository, IPromoRepository promoRepository)
+        {
+            _productRepository = productRepository;
+            _cartService = cartService;
+            _productRepository = productRepository;
+        }
+
+        public IActionResult Index()
+        {
+            var cartItems = _cartService.GetItems();
+
+            var products = _productRepository
+                .GetAll()
+                .Where(p => cartItems.Select(i => i.ProductId).Contains(p.Id))
+                .ToList();
+
+            var items = cartItems.Select(i => new ProductCartVM
+            {
+                Quantity = i.Quaintity,
+                Product = products.First(p => p.Id == i.ProductId)
+            });
+
+            var viewModel = new CartVM
+            {
+                Items = items,
+                TotalPrice = items.Select(i => i.Price).Aggregate(0, (sum, i) => sum + i)
+            };
+
+            return View(viewModel);
+        }
+
+        [HttpPost]
+        public IActionResult AddToCart([FromBody] CartItemVM viewModel)
+        {
+            if (string.IsNullOrEmpty(viewModel.ProductId))
+                return BadRequest();
+
+            _cartService.AddToCart(viewModel);
+            return Ok();
+        }
+
+        [HttpPost]
+        public IActionResult RemoveFromCart([FromBody] CartItemVM viewModel)
+        {
+            if (string.IsNullOrEmpty(viewModel.ProductId))
+                return BadRequest();
+
+            _cartService.RemoveFromCart(viewModel);
+            return Ok();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddQuaintity([FromBody] CartItemVM viewModel)
+        {
+            var product = await _productRepository.FindByIdAsync(viewModel.ProductId);
+            if (product == null)
+                return BadRequest();
+
+            if (viewModel.Quaintity < product.Amount)
+            {
+                _cartService.IncreaseQuaintity(viewModel.ProductId);
+                return Ok();
+
+            }
+            else
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpPost]
+        public IActionResult MinusQuaintity([FromBody] CartItemVM viewModel)
+        {
+            if (viewModel.Quaintity > 1)
+            {
+                _cartService.DecreaseQuaintity(viewModel.ProductId);
+                return Ok();
+
+            }
+            else
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Checkout()
+        {
+            var cartItems = _cartService.GetItems();
+            var products = _productRepository
+                .GetAll()
+                .AsNoTracking()
+                .Where(p => cartItems.Select(i => i.ProductId).Contains(p.Id))
+                .ToList();
+
+            foreach (var product in products)
+            {
+                product.Amount -= cartItems.First(i => i.ProductId == product.Id).Quaintity;
+                await _productRepository.UpdateAsync(product);
+            }
+
+            HttpContext.Session.Set<IEnumerable<CartItemVM>>(Settings.SessionCartKey, new List<CartItemVM>());
+
+            return RedirectToAction("Index", "Home");
+        }
+        [HttpPost]
+        public IActionResult ApplyPromo(string promoCode)
+        {
+            if (string.IsNullOrWhiteSpace(promoCode))
+                return RedirectToAction("Index");
+
+            var promo = _promoRepository.GetPromoByCode(promoCode);
+            if (promo == null)
+                return RedirectToAction("Index");
+
+            var cartItems = _cartService.GetItems();
+
+     
+            var products = _productRepository
+                .GetAll()
+                .Where(p => cartItems.Select(i => i.ProductId).Contains(p.Id))
+                .Include(p => p.Category) 
+                .ToList();
+
+            
+            var totalPrice = cartItems.Sum(i =>
+                i.Quaintity * (products.FirstOrDefault(p => p.Id == i.ProductId)?.Price ?? 0));
+
+            totalPrice -= promo.Discount;
+            if (totalPrice < 0)
+                totalPrice = 0;
+
+          
+            HttpContext.Session.Set(Settings.SessionCartKey, cartItems);
+
+            return RedirectToAction("Index");
+        }
+
+
+
+    }
+}
