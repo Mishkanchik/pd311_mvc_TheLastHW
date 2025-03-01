@@ -7,12 +7,12 @@ namespace pd311_mvc_aspnet.Controllers
 {
     [Authorize(Roles = "admin")]
     public class CategoryController(AppDbContext context) : Controller
-    {
+    {  
         public IActionResult Index()
         {
             var categories = context.Categories.AsEnumerable();
             return View(categories);
-        }
+        }                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 
         public IActionResult Create()
         {
